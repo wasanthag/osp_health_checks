@@ -60,7 +60,26 @@
     register: cluster_check
   - debug: var=cluster_check.stdout_lines
  
-
+- hosts: computes
+  become: true
+  gather_facts: no
+  tasks:
+  - name: check any systemd services are in failed state
+    shell: systemctl list-units --state=failed 'openstack*' 'neutron*' 'httpd' 'docker' 'ceph*' '*vswitch*'
+    ignore_errors: yes
+    register: failed_units
+  - debug: var=failed_units.stdout_lines
+  - name: check any docker containers exited with rc 1
+    shell: docker ps -f 'exited=1' --all
+    ignore_errors: yes
+    register: rc1_containers
+  - debug: var=rc1_containers.stdout_lines
+  - name: check any docker containers in dead or restarting state
+    shell: docker ps -f 'status=dead' -f 'status=restarting'
+    ignore_errors: yes
+    register: dead_containers
+  - debug: var=dead_containers.stdout_lines
+  
 - hosts: localhost
   gather_facts: no
   tasks:
