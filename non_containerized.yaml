@@ -1,0 +1,101 @@
+- hosts: controllers[0]
+  become: true
+  gather_facts: no
+  tasks:
+  - name: check pacemaker status
+    shell: pcs status
+    ignore_errors: yes
+    register: pcs_status
+  - debug: var=pcs_status.stdout_lines
+  - name: check rabbitmq cluster status
+    shell: docker exec rabbitmq-bundle-docker-0 rabbitmqctl cluster_status
+    ignore_errors: yes
+    register: rabbit_status
+  - debug: var=rabbit_status.stdout_lines
+  - name: check galera cluster status
+    shell: docker exec galera-bundle-docker-0 clustercheck
+    ignore_errors: yes
+    register: galera_status
+  - debug: var=galera_status.stdout_lines
+  - name: check ceph cluster health
+    shell: ceph -s
+    ignore_errors: yes
+    register: ceph_health
+  - debug: var=ceph_health.stdout_lines
+  - name: check ceph cluster space
+    shell: ceph df
+    ignore_errors: yes
+    register: ceph_df
+  - debug: var=ceph_df.stdout_lines
+
+
+- hosts: controllers
+  become: true
+  gather_facts: no
+  tasks:
+  - name: check any systemd services are in failed state
+    shell: systemctl list-units --state=failed 'openstack*' 'neutron*' 'httpd' 'docker' 'ceph*' '*vswitch*'
+    ignore_errors: yes
+    register: failed_units
+  - debug: var=failed_units.stdout_lines
+  - name: check any docker containers exited with rc 1
+    shell: docker ps -f 'exited=1' --all
+    ignore_errors: yes
+    register: rc1_containers
+  - debug: var=rc1_containers.stdout_lines
+  - name: check any docker containers in dead or restarting state
+    shell: docker ps -f 'status=dead' -f 'status=restarting'
+    ignore_errors: yes
+    register: dead_containers
+  - debug: var=dead_containers.stdout_lines
+  - name: check rabbitmq node health
+    shell: cid=`docker ps -f 'name=.*rabbitmq.*' -q`; docker exec "$cid" rabbitmqctl node_health_check
+    ignore_errors: yes
+    register: rabbit_node_health
+  - debug: var=rabbit_node_health.stdout_lines
+  - name: check galera cluster sync
+    shell: docker exec clustercheck clustercheck
+    ignore_errors: yes
+    register: cluster_check
+  - debug: var=cluster_check.stdout_lines
+ 
+- hosts: computes
+  become: true
+  gather_facts: no
+  tasks:
+  - name: check any systemd services are in failed state
+    shell: systemctl list-units --state=failed 'openstack*' 'neutron*' 'httpd' 'docker' 'ceph*' '*vswitch*'
+    ignore_errors: yes
+    register: failed_units
+  - debug: var=failed_units.stdout_lines
+  - name: check any docker containers exited with rc 1
+    shell: docker ps -f 'exited=1' --all
+    ignore_errors: yes
+    register: rc1_containers
+  - debug: var=rc1_containers.stdout_lines
+  - name: check any docker containers in dead or restarting state
+    shell: docker ps -f 'status=dead' -f 'status=restarting'
+    ignore_errors: yes
+    register: dead_containers
+  - debug: var=dead_containers.stdout_lines
+ 
+
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - name: check network agent health
+    shell: source ~/overcloudrc ; openstack network agent list 
+    ignore_errors: yes
+    register: network_agent_health
+  - debug: var=network_agent_health.stdout_lines
+  - name: check compute agent health
+    shell: source ~/overcloudrc ; openstack compute service list 
+    ignore_errors: yes
+    register: compute_agent_health
+  - debug: var=compute_agent_health.stdout_lines
+  - name: check volume service health
+    shell: source ~/overcloudrc ; openstack volume service list 
+    ignore_errors: yes
+    register: volume_service_health
+  - debug: var=volume_service_health.stdout_lines
+  
