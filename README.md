@@ -18,4 +18,6 @@ First create an ansible inventory , ex, hosts and run the playbooks by ansible-p
 
 172.16.6.20
 
+This was devloped to run from Red Hat OSP director as it takes care of ssh key based authentication to controlelrs and computes. This assumes you correctly add the controllers in order in to the ansible inventory as controller[0] is hardcoded in to some health checks and it expects the docker contaner bundles to be in the format rabbitmq-bundle-0 etc..Also the rc file location is hardcoded.
+
 
